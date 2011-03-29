@@ -267,6 +267,13 @@ public abstract class PackageManager {
    public static final int INSTALL_INTERNAL = 0x00000010;
 
     /**
+     * Flag parameter for {@link #installPackage} to indicate that this
+     * package has to be installed on the sdext.
+     * @hide
+     */
+    public static final int INSTALL_SDEXT = 0x00000020;
+
+    /**
      * Flag parameter for
      * {@link #setComponentEnabledSetting(android.content.ComponentName, int, int)} to indicate
      * that you don't want to kill the app containing the component.  Be careful when you set this
@@ -632,6 +639,13 @@ public abstract class PackageManager {
      * @hide
      */
     public static final int MOVE_EXTERNAL_MEDIA = 0x00000002;
+
+    /**
+     * Flag parameter for {@link #movePackage} to indicate that
+     * the package should be moved to sd-ext.
+     * @hide
+     */
+    public static final int MOVE_SDEXT = 0x00000004;
 
     /**
      * Feature for {@link #getSystemAvailableFeatures} and

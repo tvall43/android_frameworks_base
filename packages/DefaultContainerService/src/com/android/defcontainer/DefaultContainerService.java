@@ -387,12 +387,14 @@ public class DefaultContainerService extends IntentService {
             String archiveFilePath, int flags) {
         boolean checkInt = false;
         boolean checkExt = false;
-        boolean checkBoth = false;
+        boolean checkSDExt = false;
+        boolean checkAll = false;
         check_inner : {
             // Check flags.
             if ((flags & PackageManager.INSTALL_FORWARD_LOCK) != 0) {
                 // Check for forward locked app
                 checkInt = true;
+                checkSDExt = true;
                 break check_inner;
             } else if ((flags & PackageManager.INSTALL_INTERNAL) != 0) {
                 // Explicit flag to install internally.
@@ -408,14 +410,16 @@ public class DefaultContainerService extends IntentService {
             // Check for manifest option
             if (installLocation == PackageInfo.INSTALL_LOCATION_INTERNAL_ONLY) {
                 checkInt = true;
+                checkSDExt = true;
                 break check_inner;
             } else if (installLocation == PackageInfo.INSTALL_LOCATION_PREFER_EXTERNAL) {
                 checkExt = true;
-                checkBoth = true;
+                checkAll = true;
                 break check_inner;
             } else if (installLocation == PackageInfo.INSTALL_LOCATION_AUTO) {
                 checkInt = true;
-                checkBoth = true;
+                checkSDExt = true;
+                checkAll = true;
                 break check_inner;
             }
             // Pick user preference
@@ -423,7 +427,11 @@ public class DefaultContainerService extends IntentService {
                     .getContentResolver(),
                     Settings.Secure.DEFAULT_INSTALL_LOCATION,
                     PackageHelper.APP_INSTALL_AUTO);
-            if (installPreference == PackageHelper.APP_INSTALL_INTERNAL) {
+            if ((installPreference == PackageHelper.APP_INSTALL_SDEXT) &&
+                (android.os.Environment.IsSdExtMounted())) {
+                checkSDExt = true;
+                break check_inner;
+            } else if (installPreference == PackageHelper.APP_INSTALL_INTERNAL) {
                 checkInt = true;
                 break check_inner;
             } else if (installPreference == PackageHelper.APP_INSTALL_EXTERNAL) {
@@ -455,6 +463,15 @@ public class DefaultContainerService extends IntentService {
 
         double pctNandFree = (double)availInternalSize / (double)totalInternalSize;
 
+        long availsdextSize = -1;
+        if (android.os.Environment.IsSdExtMounted()) {
+            StatFs sdextStats = new StatFs(Environment.getSdExtDirectory().getPath());
+            long totalsdextSize = (long)sdextStats.getBlockCount() *
+                (long)sdextStats.getBlockSize();
+            availsdextSize = (long)sdextStats.getAvailableBlocks() *
+                (long)sdextStats.getBlockSize();
+        }
+
         File apkFile = new File(archiveFilePath);
         long pkgLen = apkFile.length();
         
@@ -464,6 +481,7 @@ public class DefaultContainerService extends IntentService {
         long reqInternalSize = 0;
         boolean intThresholdOk = (pctNandFree >= LOW_NAND_FLASH_TRESHOLD);
         boolean intAvailOk = ((reqInstallSize + reqInternalSize) < availInternalSize);
+        boolean fitsOnSDExt = ((reqInstallSize + reqInternalSize) < availsdextSize);
         boolean fitsOnSd = false;
         if (mediaAvailable && (reqInstallSize < availSDSize)) {
             // If we do not have an internal size requirement
@@ -475,7 +493,11 @@ public class DefaultContainerService extends IntentService {
             }
         }
         boolean fitsOnInt = intThresholdOk && intAvailOk;
-        if (checkInt) {
+        if (checkSDExt) {
+            if (fitsOnSDExt) {
+                return PackageHelper.RECOMMEND_INSTALL_SDEXT;
+            }
+        } else if (checkInt) {
             // Check for internal memory availability
             if (fitsOnInt) {
                 return PackageHelper.RECOMMEND_INSTALL_INTERNAL;
@@ -485,17 +507,21 @@ public class DefaultContainerService extends IntentService {
                 return PackageHelper.RECOMMEND_INSTALL_EXTERNAL;
             }
         }
-        if (checkBoth) {
+        if (checkAll) {
             // Check for internal first
             if (fitsOnInt) {
                 return PackageHelper.RECOMMEND_INSTALL_INTERNAL;
+            }
+            // Check for sd-ext next
+            if (fitsOnSDExt) {
+                return PackageHelper.RECOMMEND_INSTALL_SDEXT;
             }
             // Check for external next
             if (fitsOnSd) {
                 return PackageHelper.RECOMMEND_INSTALL_EXTERNAL;
             }
         }
-        if ((checkExt || checkBoth) && !mediaAvailable) {
+        if ((checkExt || checkAll || checkSDExt) && !mediaAvailable) {
             return PackageHelper.RECOMMEND_MEDIA_UNAVAILABLE;
         }
         return PackageHelper.RECOMMEND_FAILED_INSUFFICIENT_STORAGE;
@@ -521,6 +547,15 @@ public class DefaultContainerService extends IntentService {
         long availInternalSize = (long)internalStats.getAvailableBlocks() *
         (long)internalStats.getBlockSize();
 
+        long availsdextSize = -1;
+        if (android.os.Environment.IsSdExtMounted()) {
+            StatFs sdextStats = new StatFs(Environment.getSdExtDirectory().getPath());
+            long totalsdextSize = (long)sdextStats.getBlockCount() *
+            (long)sdextStats.getBlockSize();
+            availsdextSize = (long)sdextStats.getAvailableBlocks() *
+            (long)sdextStats.getBlockSize();
+        }
+
         double pctNandFree = (double)availInternalSize / (double)totalInternalSize;
         // To make final copy
         long reqInstallSize = size;
@@ -528,6 +563,12 @@ public class DefaultContainerService extends IntentService {
         long reqInternalSize = 0;
         boolean intThresholdOk = (pctNandFree >= LOW_NAND_FLASH_TRESHOLD);
         boolean intAvailOk = ((reqInstallSize + reqInternalSize) < availInternalSize);
-        return intThresholdOk && intAvailOk;
+        boolean sdextAvailOk = ((reqInstallSize + reqInternalSize) < availsdextSize);
+        // hack to work out if we are moving to sd-ext or data
+        if (packageURI.getPath().substring(1,7).equals("sd-ext")) {
+            return intThresholdOk && intAvailOk;
+        } else {
+            return sdextAvailOk;
+        }
     }
 }
