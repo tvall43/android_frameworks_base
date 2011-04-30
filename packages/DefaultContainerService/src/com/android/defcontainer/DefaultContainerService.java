@@ -407,6 +407,15 @@ public class DefaultContainerService extends IntentService {
                 checkExt = true;
                 break check_inner;
             }
+            // check if user prefers sd-ext
+            int installPreference = Settings.System.getInt(getApplicationContext()
+                    .getContentResolver(),
+                    Settings.Secure.DEFAULT_INSTALL_LOCATION,
+                    PackageHelper.APP_INSTALL_AUTO);
+
+            if (installPreference == PackageHelper.APP_INSTALL_SDEXT) {
+                checkSDExt = true;
+            }
             // Check for manifest option
             if (installLocation == PackageInfo.INSTALL_LOCATION_INTERNAL_ONLY) {
                 checkInt = true;
@@ -423,10 +432,6 @@ public class DefaultContainerService extends IntentService {
                 break check_inner;
             }
             // Pick user preference
-            int installPreference = Settings.System.getInt(getApplicationContext()
-                    .getContentResolver(),
-                    Settings.Secure.DEFAULT_INSTALL_LOCATION,
-                    PackageHelper.APP_INSTALL_AUTO);
             if ((installPreference == PackageHelper.APP_INSTALL_SDEXT) &&
                 (android.os.Environment.IsSdExtMounted())) {
                 checkSDExt = true;
