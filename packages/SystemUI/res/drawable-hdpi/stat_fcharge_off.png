@@ -1,0 +1,11 @@
+--2012-10-29 02:25:41--  https://github.com/Earthnfire78/android_frameworks_base/diff_blob/34defbdce11d545f2933a73923a7d6cc79014f83/packages/SystemUI/res/drawable-hdpi/stat_fcharge_off.png?raw=true
+Resolving github.com (github.com)... 207.97.227.239
+Connecting to github.com (github.com)|207.97.227.239|:443... connected.
+HTTP request sent, awaiting response... 200 OK
+Length: 312 [image/png]
+Saving to: ‘stat_fcharge_off.png?raw=true’
+
+     0K                                                       100% 1.66M=0s
+
+2012-10-29 02:25:46 (1.66 MB/s) - ‘stat_fcharge_off.png?raw=true’ saved [312/312]
+
